@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ventas-service
+  namespace: noctis-gaming
+  labels:
+    app: ventas-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ventas-service
+  template:
+    metadata:
+      labels:
+        app: ventas-service
+    spec:
+      containers:
+        - name: ventas-service
+          image: #{ACR_NAME}#.azurecr.io/noctis/ventas-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          env:
+            - name: PORT
+              value: "8084"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres:5432/ventas_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: noctis-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: noctis-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SERVICES_CLIENTES_URL
+              value: "http://clientes-service:8081"
+            - name: SERVICES_PRODUCTOS_URL
+              value: "http://productos-service:8082"
+            - name: SERVICES_INVENTARIO_URL
+              value: "http://inventario-service:8083"
+            - name: SERVICES_FACTURACION_URL
+              value: "http://facturacion-service:8085"
+          resources:
+            requests:
+              memory: "384Mi"
+              cpu: "250m"
+            limits:
+              memory: "768Mi"
+              cpu: "600m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+            initialDelaySeconds: 40
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ventas-service
+  namespace: noctis-gaming
+spec:
+  selector:
+    app: ventas-service
+  ports:
+    - port: 8084
+      targetPort: 8084

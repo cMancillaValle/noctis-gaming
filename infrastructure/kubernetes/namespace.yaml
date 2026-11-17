@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: noctis-gaming
+  labels:
+    app.kubernetes.io/name: noctis-gaming
+    environment: production

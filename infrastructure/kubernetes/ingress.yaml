@@ -1,0 +1,56 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: noctis-ingress
+  namespace: noctis-gaming
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+    - host: #{NOCTIS_DOMAIN}#
+      http:
+        paths:
+          - path: /api/clientes
+            pathType: Prefix
+            backend:
+              service:
+                name: clientes-service
+                port:
+                  number: 8081
+          - path: /api/productos
+            pathType: Prefix
+            backend:
+              service:
+                name: productos-service
+                port:
+                  number: 8082
+          - path: /api/inventario
+            pathType: Prefix
+            backend:
+              service:
+                name: inventario-service
+                port:
+                  number: 8083
+          - path: /api/ventas
+            pathType: Prefix
+            backend:
+              service:
+                name: ventas-service
+                port:
+                  number: 8084
+          - path: /api/facturas
+            pathType: Prefix
+            backend:
+              service:
+                name: facturacion-service
+                port:
+                  number: 8085
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

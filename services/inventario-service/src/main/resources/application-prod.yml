@@ -1,0 +1,17 @@
+# Configuración de Producción Estricta - Inventario Service
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+
+admin:
+  api-key: ${ADMIN_API_KEY}

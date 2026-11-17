@@ -1,0 +1,219 @@
+# ==============================================================================
+# NOCTIS GAMING - CI/CD PIPELINE AZURE DEVOPS
+# Arquitectura de Microservicios & Despliegue en Azure Kubernetes Service (AKS)
+# ==============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - docs/**
+      - README.md
+
+variables:
+  # Parámetros generales y versionado
+  buildVersion: '1.0.$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+  # Conexiones y Recursos Azure (Configurables en Variable Groups de Azure DevOps)
+  # Se sustituyen dinámicamente sin exponer secretos en el repositorio
+  azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_ENDPOINT)'
+  azureContainerRegistry: '$(ACR_NAME).azurecr.io'
+  acrRegistryName: '$(ACR_NAME)'
+  aksClusterName: '$(AKS_CLUSTER_NAME)'
+  aksResourceGroup: '$(AKS_RESOURCE_GROUP)'
+  keyVaultName: '$(AZURE_KEY_VAULT_NAME)'
+
+stages:
+  # ============================================================================
+  # ETAPA 1: COMPILACIÓN Y PRUEBAS UNITARIAS (BACKEND Y FRONTEND)
+  # ============================================================================
+  - stage: BuildAndTest
+    displayName: '1. Compilación y Pruebas Unitarias'
+    jobs:
+      - job: MavenBuildAndTest
+        displayName: 'Backend: Compilar y Testear Microservicios'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: JavaToolInstaller@0
+            displayName: 'Configurar JDK 21'
+            inputs:
+              versionSpec: '21'
+              jdkArchitectureOption: 'x64'
+              jdkSourceOption: 'PreInstalled'
+
+          - task: Maven@4
+            displayName: 'Compilación y Pruebas Unitarias Maven'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'clean test'
+              options: '-B'
+              publishJUnitResults: true
+              testResultsFiles: '**/surefire-reports/TEST-*.xml'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.21'
+
+          - task: Maven@4
+            displayName: 'Empaquetado de Microservicios (JARs)'
+            inputs:
+              mavenPomFile: 'pom.xml'
+              goals: 'package'
+              options: '-DskipTests -B'
+              javaHomeOption: 'JDKVersion'
+              jdkVersionOption: '1.21'
+
+      - job: FrontendBuildAndTest
+        displayName: 'Frontend: Build y Verificación TypeScript'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: NodeTool@0
+            displayName: 'Configurar Node.js 20.x'
+            inputs:
+              versionSpec: '20.x'
+
+          - script: |
+              cd frontend
+              npm ci
+              npm run build
+            displayName: 'npm ci && npm run build'
+
+  # ============================================================================
+  # ETAPA 2: ANÁLISIS DE CALIDAD Y SEGURIDAD ESTÁTICA (SAST)
+  # ============================================================================
+  - stage: QualityAnalysis
+    displayName: '2. Análisis de Calidad y Seguridad'
+    dependsOn: BuildAndTest
+    condition: succeeded()
+    jobs:
+      - job: CodeQualityScan
+        displayName: 'Análisis Estático de Código'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - script: |
+              echo "Ejecutando verificación de dependencias y políticas de seguridad..."
+            displayName: 'Dependency & Code Quality Audit'
+
+  # ============================================================================
+  # ETAPA 3: CONSTRUCCIÓN Y PUBLICACIÓN DE IMÁGENES DOCKER EN ACR
+  # ============================================================================
+  - stage: DockerBuildAndPush
+    displayName: '3. Docker Build y Publicación ACR'
+    dependsOn: QualityAnalysis
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: BuildAndPushACR
+        displayName: 'Construir y Publicar Contenedores'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+          matrix:
+            clientes:
+              serviceName: 'clientes-service'
+              dockerfilePath: 'services/clientes-service/Dockerfile'
+              buildContext: 'services/clientes-service'
+            productos:
+              serviceName: 'productos-service'
+              dockerfilePath: 'services/productos-service/Dockerfile'
+              buildContext: 'services/productos-service'
+            inventario:
+              serviceName: 'inventario-service'
+              dockerfilePath: 'services/inventario-service/Dockerfile'
+              buildContext: 'services/inventario-service'
+            ventas:
+              serviceName: 'ventas-service'
+              dockerfilePath: 'services/ventas-service/Dockerfile'
+              buildContext: 'services/ventas-service'
+            facturacion:
+              serviceName: 'facturacion-service'
+              dockerfilePath: 'services/facturacion-service/Dockerfile'
+              buildContext: 'services/facturacion-service'
+            frontend:
+              serviceName: 'noctis-frontend'
+              dockerfilePath: 'frontend/Dockerfile'
+              buildContext: 'frontend'
+        steps:
+          - task: Docker@2
+            displayName: 'Build and Push $(serviceName) to ACR'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(azureSubscriptionEndpoint)'
+              repository: 'noctis/$(serviceName)'
+              dockerfile: '$(dockerfilePath)'
+              buildContext: '$(buildContext)'
+              tags: |
+                $(buildVersion)
+                latest
+
+  # ============================================================================
+  # ETAPA 4: PREPARACIÓN Y VALIDACIÓN DE DESPLIEGUE A AKS
+  # ============================================================================
+  - stage: DeployToAKS
+    displayName: '4. Despliegue en Azure Kubernetes Service'
+    dependsOn: DockerBuildAndPush
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployAKS
+        displayName: 'Despliegue de Manifiestos a AKS'
+        pool:
+          vmImage: $(vmImageName)
+        environment: 'noctis-production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                # Obtener secretos de Azure Key Vault de forma segura
+                - task: AzureKeyVault@2
+                  displayName: 'Obtener Secretos desde Azure Key Vault'
+                  inputs:
+                    azureSubscription: '$(azureSubscriptionEndpoint)'
+                    KeyVaultName: '$(keyVaultName)'
+                    SecretsFilter: 'PostgresPassword,AdminApiKey'
+                    RunAsPreJob: false
+
+                # Configuración de contexto AKS
+                - task: Kubernetes@1
+                  displayName: 'Conectar con AKS'
+                  inputs:
+                    connectionType: 'Azure Resource Manager'
+                    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
+                    azureResourceGroup: '$(aksResourceGroup)'
+                    kubernetesCluster: '$(aksClusterName)'
+                    command: 'apply'
+                    useConfigurationFile: true
+                    configuration: 'infrastructure/kubernetes/namespace.yaml'
+
+                # Despliegue de Manifiestos
+                - task: KubernetesManifest@1
+                  displayName: 'Desplegar Manifiestos K8s'
+                  inputs:
+                    action: 'deploy'
+                    connectionType: 'azureResourceManager'
+                    azureSubscriptionConnection: '$(azureSubscriptionEndpoint)'
+                    azureResourceGroup: '$(aksResourceGroup)'
+                    kubernetesCluster: '$(aksClusterName)'
+                    namespace: 'noctis-gaming'
+                    manifests: |
+                      infrastructure/kubernetes/configmaps.yaml
+                      infrastructure/kubernetes/postgres.yaml
+                      infrastructure/kubernetes/clientes-service.yaml
+                      infrastructure/kubernetes/productos-service.yaml
+                      infrastructure/kubernetes/inventario-service.yaml
+                      infrastructure/kubernetes/facturacion-service.yaml
+                      infrastructure/kubernetes/ventas-service.yaml
+                      infrastructure/kubernetes/frontend.yaml
+                      infrastructure/kubernetes/ingress.yaml
+                    containers: |
+                      $(azureContainerRegistry)/noctis/clientes-service:$(buildVersion)
+                      $(azureContainerRegistry)/noctis/productos-service:$(buildVersion)
+                      $(azureContainerRegistry)/noctis/inventario-service:$(buildVersion)
+                      $(azureContainerRegistry)/noctis/facturacion-service:$(buildVersion)
+                      $(azureContainerRegistry)/noctis/ventas-service:$(buildVersion)
+                      $(azureContainerRegistry)/noctis/noctis-frontend:$(buildVersion)

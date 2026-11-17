@@ -1,0 +1,12 @@
+package com.noctis.inventario.dto;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record ActualizarStockDTO(
+        @NotNull(message = "La cantidad disponible es obligatoria")
+        @Min(value = 0, message = "La cantidad disponible no puede ser negativa")
+        Integer cantidadDisponible,
+
+        String ubicacionAlmacen
+) {}

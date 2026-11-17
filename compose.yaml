@@ -1,0 +1,219 @@
+services:
+  # =======================================================
+  # BASE DE DATOS: PostgreSQL (Bases lógicas independientes)
+  # =======================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: noctis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # =======================================================
+  # MICROSERVICIO 1: Clientes (Puerto 8081)
+  # =======================================================
+  clientes-service:
+    build:
+      context: ./services/clientes-service
+      dockerfile: Dockerfile
+    container_name: noctis-clientes
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/clientes_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      NOCTIS_SEED_ENABLED: ${NOCTIS_SEED_ENABLED:-true}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+    ports:
+      - "8081:8081"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # =======================================================
+  # MICROSERVICIO 2: Productos (Puerto 8082)
+  # =======================================================
+  productos-service:
+    build:
+      context: ./services/productos-service
+      dockerfile: Dockerfile
+    container_name: noctis-productos
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/productos_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    ports:
+      - "8082:8082"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # =======================================================
+  # MICROSERVICIO 3: Inventario (Puerto 8083)
+  # =======================================================
+  inventario-service:
+    build:
+      context: ./services/inventario-service
+      dockerfile: Dockerfile
+    container_name: noctis-inventario
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventario_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    ports:
+      - "8083:8083"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # =======================================================
+  # MICROSERVICIO 4: Facturación (Puerto 8085)
+  # =======================================================
+  facturacion-service:
+    build:
+      context: ./services/facturacion-service
+      dockerfile: Dockerfile
+    container_name: noctis-facturacion
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 8085
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/facturacion_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "8085:8085"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # =======================================================
+  # MICROSERVICIO 5: Ventas (Orquestador - Puerto 8084)
+  # =======================================================
+  ventas-service:
+    build:
+      context: ./services/ventas-service
+      dockerfile: Dockerfile
+    container_name: noctis-ventas
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clientes-service:
+        condition: service_healthy
+      productos-service:
+        condition: service_healthy
+      inventario-service:
+        condition: service_healthy
+      facturacion-service:
+        condition: service_healthy
+    environment:
+      PORT: 8084
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ventas_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVICES_CLIENTES_URL: http://clientes-service:8081
+      SERVICES_PRODUCTOS_URL: http://productos-service:8082
+      SERVICES_INVENTARIO_URL: http://inventario-service:8083
+      SERVICES_FACTURACION_URL: http://facturacion-service:8085
+    ports:
+      - "8084:8084"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 35s
+
+  # =======================================================
+  # FRONTEND: React + Vite + Nginx (Puerto 3000)
+  # =======================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: noctis-frontend
+    restart: unless-stopped
+    depends_on:
+      - ventas-service
+    ports:
+      - "3000:80"
+    networks:
+      - noctis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+# =======================================================
+# REDES Y VOLÚMENES PERSISTENTES
+# =======================================================
+networks:
+  noctis-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
