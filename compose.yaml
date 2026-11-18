@@ -49,7 +49,7 @@ services:
     networks:
       - noctis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -74,12 +74,13 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_API_KEY: ${ADMIN_API_KEY}
+      NOCTIS_SEED_ENABLED: ${NOCTIS_SEED_ENABLED:-true}
     ports:
       - "8082:8082"
     networks:
       - noctis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -104,12 +105,13 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_API_KEY: ${ADMIN_API_KEY}
+      NOCTIS_SEED_ENABLED: ${NOCTIS_SEED_ENABLED:-true}
     ports:
       - "8083:8083"
     networks:
       - noctis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -138,7 +140,7 @@ services:
     networks:
       - noctis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -179,7 +181,7 @@ services:
     networks:
       - noctis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -196,6 +198,12 @@ services:
     restart: unless-stopped
     depends_on:
       - ventas-service
+    environment:
+      CLIENTES_SERVICE_URL: http://clientes-service:8081
+      PRODUCTOS_SERVICE_URL: http://productos-service:8082
+      INVENTARIO_SERVICE_URL: http://inventario-service:8083
+      VENTAS_SERVICE_URL: http://ventas-service:8084
+      FACTURACION_SERVICE_URL: http://facturacion-service:8085
     ports:
       - "3000:80"
     networks:

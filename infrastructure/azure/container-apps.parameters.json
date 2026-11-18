@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "containerAppsEnvironmentName": {
+      "value": "cae-noctis-gaming-dev"
+    },
+    "managedIdentityName": {
+      "value": "id-noctis-acr-pull-dev"
+    },
+    "acrServer": {
+      "value": "acrnoctisgamingdev.azurecr.io"
+    },
+    "postgresHost": {
+      "value": "psql-noctis-gaming-dev.postgres.database.azure.com"
+    },
+    "postgresPort": {
+      "value": 5432
+    },
+    "postgresSslMode": {
+      "value": "require"
+    },
+    "postgresUsername": {
+      "value": "psqladmin"
+    },
+    "imageTag": {
+      "value": "1.0.0"
+    },
+    "minReplicas": {
+      "value": 0
+    },
+    "maxReplicas": {
+      "value": 1
+    },
+    "microserviceCpu": {
+      "value": "0.5"
+    },
+    "microserviceMemory": {
+      "value": "1.0Gi"
+    },
+    "frontendCpu": {
+      "value": "0.25"
+    },
+    "frontendMemory": {
+      "value": "0.5Gi"
+    },
+    "corsAllowedOrigins": {
+      "value": ""
+    },
+    "seedDemoCatalog": {
+      "value": false
+    }
+  }
+}

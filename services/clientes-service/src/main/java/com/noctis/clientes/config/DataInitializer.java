@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -19,7 +18,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
     private final ClienteRepository clienteRepository;
-    private final JdbcTemplate jdbcTemplate;
     private final Environment environment;
 
     @Value("${noctis.seed.enabled:true}")
@@ -31,23 +29,15 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${noctis.seed.demo-password:}")
     private String demoPassword;
 
-    public DataInitializer(ClienteRepository clienteRepository, JdbcTemplate jdbcTemplate, Environment environment) {
+    public DataInitializer(ClienteRepository clienteRepository, Environment environment) {
         this.clienteRepository = clienteRepository;
-        this.jdbcTemplate = jdbcTemplate;
         this.environment = environment;
     }
 
     @Override
     public void run(String... args) {
-        // 1. Garantizar esquema no destructivo: verificar columna rol en la tabla clientes
-        try {
-            jdbcTemplate.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'CLIENTE'");
-            log.info("Verificación de esquema completada: columna 'rol' asegurada en tabla clientes.");
-        } catch (Exception e) {
-            log.debug("Nota sobre verificación de columna 'rol': {}", e.getMessage());
-        }
-
-        // 2. Restringir semillas y demostración: NUNCA sembrar usuarios demo en perfil prod
+        // Restringir semillas y demostración: NUNCA sembrar usuarios demo en perfil prod.
+        // La evolución del esquema es responsabilidad exclusiva de Flyway.
         boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
         if (isProd) {
             log.info("Perfil de producción detectado: se omite la creación automática de usuarios de demostración.");
@@ -72,7 +62,7 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        // 3. Inicializar Administrador en entorno local / desarrollo
+        // Inicializar Administrador en entorno local / desarrollo
         if (!clienteRepository.existsByEmail("admin@noctisgaming.co")) {
             log.info("Inicializando usuario administrador de desarrollo local...");
             String adminPass = (initialAdminPassword != null && !initialAdminPassword.isBlank())
@@ -89,7 +79,7 @@ public class DataInitializer implements CommandLineRunner {
             clienteRepository.save(admin);
         }
 
-        // 4. Inicializar clientes demo para pruebas locales si no existen
+        // Inicializar clientes demo para pruebas locales si no existen
         String clientPass = (demoPassword != null && !demoPassword.isBlank())
                 ? demoPassword
                 : "DevClientSecure2026!";

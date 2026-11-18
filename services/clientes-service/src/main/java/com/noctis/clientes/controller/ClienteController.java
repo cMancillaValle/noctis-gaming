@@ -2,6 +2,8 @@ package com.noctis.clientes.controller;
 
 import com.noctis.clientes.dto.*;
 import com.noctis.clientes.service.ClienteService;
+import com.noctis.clientes.util.AuthorizationUtils;
+import com.noctis.clientes.util.TokenUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class ClienteController {
     @GetMapping("/me")
     public ResponseEntity<ClienteResponseDTO> obtenerPerfilActual(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        AuthorizationUtils.requireAuthenticated(authHeader);
         return ResponseEntity.ok(clienteService.obtenerPerfilActual(authHeader));
     }
 
@@ -41,21 +44,38 @@ public class ClienteController {
             @PathVariable Long id,
             @Valid @RequestBody ClienteUpdateDTO updateDTO,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
+        AuthorizationUtils.requireOwnerOrAdmin(claims, id);
         return ResponseEntity.ok(clienteService.actualizarPerfil(id, updateDTO, authHeader));
     }
 
     @GetMapping
-    public ResponseEntity<List<ClienteResponseDTO>> listarTodos() {
+    public ResponseEntity<List<ClienteResponseDTO>> listarTodos(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        AuthorizationUtils.requireAdmin(AuthorizationUtils.requireAuthenticated(authHeader));
         return ResponseEntity.ok(clienteService.listarTodos());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteResponseDTO> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<ClienteResponseDTO> buscarPorId(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
+        AuthorizationUtils.requireOwnerAdminOrVentasService(claims, id);
         return ResponseEntity.ok(clienteService.buscarPorId(id));
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<ClienteResponseDTO> buscarPorEmail(@PathVariable String email) {
+    public ResponseEntity<ClienteResponseDTO> buscarPorEmail(
+            @PathVariable String email,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
+        boolean ownEmail = email.equalsIgnoreCase(claims.email());
+        boolean admin = "ADMIN".equalsIgnoreCase(claims.rol());
+        if (!ownEmail && !admin) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "No puedes consultar información de otro cliente");
+        }
         return ResponseEntity.ok(clienteService.buscarPorEmail(email));
     }
 }

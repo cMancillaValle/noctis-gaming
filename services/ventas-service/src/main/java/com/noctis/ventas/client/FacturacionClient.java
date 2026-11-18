@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import com.noctis.ventas.util.TokenUtils;
 
 @Component
 public class FacturacionClient {
@@ -25,6 +26,7 @@ public class FacturacionClient {
         try {
             return restClient.post()
                     .uri("/api/facturas")
+                    .header("Authorization", "Bearer " + TokenUtils.generateServiceToken())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()

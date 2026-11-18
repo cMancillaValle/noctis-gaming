@@ -20,6 +20,37 @@ public class TokenUtils {
 
     public record TokenClaims(Long id, String email, String nombre, String rol, long exp) {}
 
+    public static String generateServiceToken() {
+        try {
+            requireConfiguredServiceSecret();
+            long exp = Instant.now().getEpochSecond() + 300;
+            Map<String, Object> header = Map.of("alg", "HS256", "typ", "JWT");
+            Map<String, Object> payload = Map.of(
+                    "id", 0L,
+                    "email", "ventas-service",
+                    "nombre", "Ventas Service",
+                    "rol", "SERVICE",
+                    "exp", exp
+            );
+            String encodedHeader = Base64.getUrlEncoder().withoutPadding().encodeToString(MAPPER.writeValueAsBytes(header));
+            String encodedPayload = Base64.getUrlEncoder().withoutPadding().encodeToString(MAPPER.writeValueAsBytes(payload));
+            String data = encodedHeader + "." + encodedPayload;
+            return data + "." + sign(data);
+        } catch (Exception e) {
+            throw new IllegalStateException("No fue posible crear la credencial interna", e);
+        }
+    }
+
+    private static void requireConfiguredServiceSecret() {
+        boolean configured = configuredSecret != null && !configuredSecret.isBlank();
+        boolean environment = System.getenv("JWT_SECRET") != null && !System.getenv("JWT_SECRET").isBlank();
+        boolean property = System.getProperty("security.jwt.secret") != null
+                && !System.getProperty("security.jwt.secret").isBlank();
+        if (!configured && !environment && !property) {
+            throw new IllegalStateException("JWT_SECRET explícito requerido para autenticación entre servicios");
+        }
+    }
+
     public static synchronized void setSecret(String secret) {
         if (secret != null && !secret.isBlank()) {
             configuredSecret = secret.trim();

@@ -1,7 +1,7 @@
 # Configuración de Producción Estricta - Clientes Service
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:clientes_db}?sslmode=${POSTGRES_SSLMODE:require}}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
@@ -15,4 +15,23 @@ security:
 
 noctis:
   seed:
-    enabled: false
+    enabled: ${NOCTIS_SEED_ENABLED:false}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState

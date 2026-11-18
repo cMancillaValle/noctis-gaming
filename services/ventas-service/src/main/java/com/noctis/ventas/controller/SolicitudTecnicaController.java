@@ -5,6 +5,7 @@ import com.noctis.ventas.dto.CrearSolicitudTecnicaDTO;
 import com.noctis.ventas.dto.SolicitudTecnicaResponseDTO;
 import com.noctis.ventas.service.SolicitudTecnicaService;
 import com.noctis.ventas.util.TokenUtils;
+import com.noctis.ventas.util.AuthorizationUtils;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,7 @@ public class SolicitudTecnicaController {
     public ResponseEntity<SolicitudTecnicaResponseDTO> crear(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @Valid @RequestBody CrearSolicitudTecnicaDTO dto) {
-        TokenUtils.TokenClaims claims = TokenUtils.validateAndExtract(authHeader);
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
         SolicitudTecnicaResponseDTO response = service.crearSolicitud(dto, claims);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -34,7 +35,8 @@ public class SolicitudTecnicaController {
     @GetMapping
     public ResponseEntity<List<SolicitudTecnicaResponseDTO>> listarTodas(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        TokenUtils.TokenClaims claims = TokenUtils.validateAndExtract(authHeader);
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
+        AuthorizationUtils.requireAdmin(claims);
         return ResponseEntity.ok(service.listarTodas(claims));
     }
 
@@ -42,7 +44,7 @@ public class SolicitudTecnicaController {
     public ResponseEntity<List<SolicitudTecnicaResponseDTO>> listarPorCliente(
             @PathVariable Long clienteId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        TokenUtils.TokenClaims claims = TokenUtils.validateAndExtract(authHeader);
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
         return ResponseEntity.ok(service.listarPorCliente(clienteId, claims));
     }
 
@@ -50,7 +52,7 @@ public class SolicitudTecnicaController {
     public ResponseEntity<SolicitudTecnicaResponseDTO> obtenerPorId(
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        TokenUtils.TokenClaims claims = TokenUtils.validateAndExtract(authHeader);
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
         return ResponseEntity.ok(service.obtenerPorId(id, claims));
     }
 
@@ -59,7 +61,8 @@ public class SolicitudTecnicaController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @Valid @RequestBody ActualizarEstadoSolicitudDTO dto) {
-        TokenUtils.TokenClaims claims = TokenUtils.validateAndExtract(authHeader);
+        TokenUtils.TokenClaims claims = AuthorizationUtils.requireAuthenticated(authHeader);
+        AuthorizationUtils.requireAdmin(claims);
         return ResponseEntity.ok(service.actualizarEstado(id, dto, claims));
     }
 }

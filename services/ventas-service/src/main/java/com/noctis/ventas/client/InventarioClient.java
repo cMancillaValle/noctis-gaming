@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import com.noctis.ventas.util.TokenUtils;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ public class InventarioClient {
             DescontarStockClientRequestDTO request = new DescontarStockClientRequestDTO(operacionId, items, referencia);
             return restClient.post()
                     .uri("/api/inventario/descontar")
+                    .header("Authorization", "Bearer " + TokenUtils.generateServiceToken())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
@@ -42,6 +44,7 @@ public class InventarioClient {
             ReponerStockClientRequestDTO request = new ReponerStockClientRequestDTO(operacionId, motivo);
             return restClient.post()
                     .uri("/api/inventario/reponer")
+                    .header("Authorization", "Bearer " + TokenUtils.generateServiceToken())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import com.noctis.ventas.util.TokenUtils;
 
 @Component
 public class ClientesClient {
@@ -23,6 +24,7 @@ public class ClientesClient {
         try {
             return restClient.get()
                     .uri("/api/clientes/{id}", clienteId)
+                    .header("Authorization", "Bearer " + TokenUtils.generateServiceToken())
                     .retrieve()
                     .body(ClienteClientDTO.class);
         } catch (Exception ex) {

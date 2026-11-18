@@ -25,6 +25,8 @@ variables:
   nodeVersion: '20.x'
   # Nombre de la conexión de servicio Docker Registry ya autorizada en Azure DevOps.
   acrServiceConnection: 'sc-acr-noctis-gaming'
+  # Etiqueta inmutable e identificable por compilación para despliegues trazables en ACA / Bicep
+  imageTag: '1.0.$(Build.BuildId)'
 
 stages:
   # ============================================================================
@@ -135,6 +137,7 @@ stages:
               dockerfile: 'services/clientes-service/Dockerfile'
               buildContext: 'services/clientes-service'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
@@ -147,6 +150,7 @@ stages:
               dockerfile: 'services/productos-service/Dockerfile'
               buildContext: 'services/productos-service'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
@@ -159,6 +163,7 @@ stages:
               dockerfile: 'services/inventario-service/Dockerfile'
               buildContext: 'services/inventario-service'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
@@ -171,6 +176,7 @@ stages:
               dockerfile: 'services/ventas-service/Dockerfile'
               buildContext: 'services/ventas-service'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
@@ -183,6 +189,7 @@ stages:
               dockerfile: 'services/facturacion-service/Dockerfile'
               buildContext: 'services/facturacion-service'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
@@ -195,6 +202,7 @@ stages:
               dockerfile: 'frontend/Dockerfile'
               buildContext: 'frontend'
               tags: |
+                $(imageTag)
                 $(Build.BuildId)
                 latest
 
