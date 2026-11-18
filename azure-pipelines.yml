@@ -1,9 +1,9 @@
 # ==============================================================================
 # NOCTIS GAMING - Integración continua (CI)
 #
-# Esta definición valida el backend y el frontend. La publicación de imágenes y
-# el despliegue se incorporarán más adelante, cuando existan ACR, AKS y las
-# conexiones de servicio correspondientes.
+# Esta definición valida el backend y el frontend, y publica imágenes en ACR.
+# El despliegue se incorporará más adelante, cuando exista la infraestructura y
+# las conexiones de servicio necesarias.
 # ==============================================================================
 
 # Ejecutar CI para cambios en la rama principal. Los filtros de ruta evitan una
@@ -23,6 +23,8 @@ variables:
   vmImageName: 'ubuntu-latest'
   javaVersion: '21'
   nodeVersion: '20.x'
+  # Nombre de la conexión de servicio Docker Registry ya autorizada en Azure DevOps.
+  acrServiceConnection: 'sc-acr-noctis-gaming'
 
 stages:
   # ============================================================================
@@ -108,7 +110,94 @@ stages:
             workingDirectory: 'frontend'
             displayName: 'Instalar dependencias y compilar frontend'
 
-# Futuro CD (intencionalmente fuera de esta ejecución de CI):
-# - Construcción y publicación de imágenes en Azure Container Registry (ACR).
+  # ============================================================================
+  # ETAPA 3: CONSTRUCCIÓN Y PUBLICACIÓN DE IMÁGENES EN ACR
+  # ============================================================================
+  - stage: DockerBuildAndPush
+    displayName: '3. Docker: construir y publicar imágenes en ACR'
+    dependsOn: Frontend
+    # La publicación queda restringida a ejecuciones exitosas de la rama main.
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: BuildAndPushImages
+        displayName: 'Construir y publicar imágenes Docker'
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          # Cada Dockerfile es multietapa y compila con su contexto específico.
+          # Las tareas se ejecutan en serie para evitar trabajos paralelos innecesarios.
+          - task: Docker@2
+            displayName: 'Publicar clientes-service'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/clientes-service'
+              dockerfile: 'services/clientes-service/Dockerfile'
+              buildContext: 'services/clientes-service'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Publicar productos-service'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/productos-service'
+              dockerfile: 'services/productos-service/Dockerfile'
+              buildContext: 'services/productos-service'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Publicar inventario-service'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/inventario-service'
+              dockerfile: 'services/inventario-service/Dockerfile'
+              buildContext: 'services/inventario-service'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Publicar ventas-service'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/ventas-service'
+              dockerfile: 'services/ventas-service/Dockerfile'
+              buildContext: 'services/ventas-service'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Publicar facturacion-service'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/facturacion-service'
+              dockerfile: 'services/facturacion-service/Dockerfile'
+              buildContext: 'services/facturacion-service'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+          - task: Docker@2
+            displayName: 'Publicar noctis-frontend'
+            inputs:
+              command: 'buildAndPush'
+              containerRegistry: '$(acrServiceConnection)'
+              repository: 'noctis/noctis-frontend'
+              dockerfile: 'frontend/Dockerfile'
+              buildContext: 'frontend'
+              tags: |
+                $(Build.BuildId)
+                latest
+
+# Futuro CD (intencionalmente fuera de esta ejecución):
 # - Despliegue de manifiestos en Azure Kubernetes Service (AKS).
 # - Consumo de secretos desde Azure Key Vault mediante conexiones de servicio.
