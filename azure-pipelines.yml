@@ -27,6 +27,7 @@ variables:
   acrServiceConnection: 'sc-acr-noctis-gaming'
   # Etiqueta inmutable e identificable por compilación para despliegues trazables en ACA / Bicep
   imageTag: '1.0.$(Build.BuildId)'
+  soloFrontend: 'true'
 
 stages:
   # ============================================================================
