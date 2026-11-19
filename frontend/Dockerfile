@@ -8,6 +8,8 @@ RUN npm run build
 
 # Stage 2: Runtime
 FROM nginx:alpine
+COPY 10-resolve-dns.sh /docker-entrypoint.d/10-resolve-dns.sh
+RUN chmod +x /docker-entrypoint.d/10-resolve-dns.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 ENV CLIENTES_SERVICE_URL=http://clientes-service:8081 \
@@ -20,4 +22,3 @@ EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]
-
